@@ -25,7 +25,7 @@ For more information, please refer to <https://unlicense.org> */
 bool setsysInternetTimeSyncIsOn() {
     Result rs = setsysInitialize();
     if (R_FAILED(rs)) {
-        printf("setsysInitialize failed, %x\n", rs);
+        printf("       setsysInitialize failed, %x\n", rs);
         return false;
     }
 
@@ -33,27 +33,11 @@ bool setsysInternetTimeSyncIsOn() {
     rs = setsysIsUserSystemClockAutomaticCorrectionEnabled(&internetTimeSyncIsOn);
     setsysExit();
     if (R_FAILED(rs)) {
-        printf("Unable to detect if Internet time sync is enabled, %x\n", rs);
+        printf("       Unable to detect if Internet time sync is enabled, %x\n", rs);
         return false;
     }
 
     return internetTimeSyncIsOn;
-}
-
-Result enableSetsysInternetTimeSync() {
-    Result rs = setsysInitialize();
-    if (R_FAILED(rs)) {
-        printf("setsysInitialize failed, %x\n", rs);
-        return rs;
-    }
-
-    rs = setsysSetUserSystemClockAutomaticCorrectionEnabled(true);
-    setsysExit();
-    if (R_FAILED(rs)) {
-        printf("Unable to enable Internet time sync: %x\n", rs);
-    }
-
-    return rs;
 }
 
 /*
@@ -77,24 +61,24 @@ TimeServiceType __nx_time_service_type = TimeServiceType_System;
 bool setNetworkSystemClock(time_t time) {
     Result rs = timeSetCurrentTime(TimeType_NetworkSystemClock, (uint64_t)time);
     if (R_FAILED(rs)) {
-        printf("timeSetCurrentTime failed with %x\n", rs);
+        printf("       timeSetCurrentTime failed with %x\n", rs);
         return false;
     }
-    printf("Successfully set NetworkSystemClock.\n");
+    printf("       Successfully set NetworkSystemClock.\n\n\n");
     return true;
 }
 
 int consoleExitWithMsg(char* msg) {
-    printf("%s\n\nPress + to quit...", msg);
+    //printf("%s\n\nPress + to quit...", msg);
 
     while (appletMainLoop()) {
         hidScanInput();
         u64 kDown = hidKeysDown(CONTROLLER_P1_AUTO);
 
-        if (kDown & KEY_PLUS) {
-            consoleExit(NULL);
-            return 0;  // return to hbmenu
-        }
+        //if (kDown & KEY_PLUS) {
+        //    consoleExit(NULL);
+        //    return 0;  // return to hbmenu
+        //}
 
         consoleUpdate(NULL);
     }
@@ -102,60 +86,10 @@ int consoleExitWithMsg(char* msg) {
     return 0;
 }
 
-bool toggleHBMenuPath(char* curPath) {
-    const char* HB_MENU_NRO_PATH = "sdmc:/hbmenu.nro";
-    const char* HB_MENU_BAK_PATH = "sdmc:/hbmenu.nro.bak";
-    const char* DEFAULT_RESTORE_PATH = "sdmc:/switch/switch-time.nro";
-
-    printf("\n\n");
-
-    Result rs;
-    if (strcmp(curPath, HB_MENU_NRO_PATH) == 0) {
-        // restore hbmenu
-        rs = access(HB_MENU_BAK_PATH, F_OK);
-        if (R_FAILED(rs)) {
-            printf("could not find %s to restore. failed: 0x%x", HB_MENU_BAK_PATH, rs);
-            consoleExitWithMsg("");
-            return false;
-        }
-
-        rs = rename(curPath, DEFAULT_RESTORE_PATH);
-        if (R_FAILED(rs)) {
-            printf("fsFsRenameFile(%s, %s) failed: 0x%x", curPath, DEFAULT_RESTORE_PATH, rs);
-            consoleExitWithMsg("");
-            return false;
-        }
-        rs = rename(HB_MENU_BAK_PATH, HB_MENU_NRO_PATH);
-        if (R_FAILED(rs)) {
-            printf("fsFsRenameFile(%s, %s) failed: 0x%x", HB_MENU_BAK_PATH, HB_MENU_NRO_PATH, rs);
-            consoleExitWithMsg("");
-            return false;
-        }
-    } else {
-        // replace hbmenu
-        rs = rename(HB_MENU_NRO_PATH, HB_MENU_BAK_PATH);
-        if (R_FAILED(rs)) {
-            printf("fsFsRenameFile(%s, %s) failed: 0x%x", HB_MENU_NRO_PATH, HB_MENU_BAK_PATH, rs);
-            consoleExitWithMsg("");
-            return false;
-        }
-        rs = rename(curPath, HB_MENU_NRO_PATH);
-        if (R_FAILED(rs)) {
-            printf("fsFsRenameFile(%s, %s) failed: 0x%x", curPath, HB_MENU_NRO_PATH, rs);
-            rename(HB_MENU_BAK_PATH, HB_MENU_NRO_PATH);  // hbmenu already moved, try to move it back
-            consoleExitWithMsg("");
-            return false;
-        }
-    }
-
-    printf("Quick launch toggled\n\n");
-
-    return true;
-}
 
 int main(int argc, char* argv[]) {
     consoleInit(NULL);
-    printf("SwitchTime v0.1.1\n\n");
+    printf("\n       SwitchTime v0.1.1 MOD\n");
 
     if (!setsysInternetTimeSyncIsOn()) {
         // printf("Trying setsysSetUserSystemClockAutomaticCorrectionEnabled...\n");
@@ -165,34 +99,53 @@ int main(int argc, char* argv[]) {
         // doesn't work without rebooting? not worth it
         return consoleExitWithMsg("Internet time sync is not enabled. Please enable it in System Settings.");
     }
+    printf(
+        "\n\n\n"
+        "       UP/DOWN to change hour\n"
+        "       LEFT/RIGHT to change day\n"
+        "       L/R to change 7 days\n"
+        "       A to save time\n\n\n");
+
+    int dayChange = 0, hourChange = 0;
 
     // Main loop
     while (appletMainLoop()) {
-        printf(
-            "\n\n\n"
-            "Press: UP/DOWN to change hour | LEFT/RIGHT to change day\n"
-            "       A to confirm time      | Y to reset to current time (ntp.org time server)\n"
-            "                              | + to quit\n\n\n");
-
-        int dayChange = 0, hourChange = 0;
         while (appletMainLoop()) {
             hidScanInput();
             u64 kDown = hidKeysDown(CONTROLLER_P1_AUTO);
 
-            if (kDown & KEY_PLUS) {
-                consoleExit(NULL);
-                return 0;  // return to hbmenu
-            }
+			//We're running this as an applet for overwriting the user page, so "quitting" isn't a thing i this version
+            //if (kDown & KEY_PLUS) {
+            //    consoleExit(NULL);
+            //    return 0;  // return to hbmenu
+            //}
+			
             if (kDown & KEY_L) {
-                if (!toggleHBMenuPath(argv[0])) {
-                    return 0;
-                }
+                dayChange--;
+				dayChange--;
+				dayChange--;
+				dayChange--;
+				dayChange--;
+				dayChange--;
+				dayChange--;
             }
+
+			
+            if (kDown & KEY_R) {
+                dayChange++;
+				dayChange++;
+				dayChange++;
+				dayChange++;
+				dayChange++;
+				dayChange++;
+				dayChange++;
+            }
+
 
             time_t currentTime;
             Result rs = timeGetCurrentTime(TimeType_UserSystemClock, (u64*)&currentTime);
             if (R_FAILED(rs)) {
-                printf("timeGetCurrentTime failed with %x", rs);
+                printf("       timeGetCurrentTime failed with %x", rs);
                 return consoleExitWithMsg("");
             }
 
@@ -207,14 +160,6 @@ int main(int argc, char* argv[]) {
                 break;
             }
 
-            if (kDown & KEY_Y) {
-                printf("\n\n\n");
-                rs = ntpGetTime(&timeToSet);
-                if (R_SUCCEEDED(rs)) {
-                    setNetworkSystemClock(timeToSet);
-                }
-                break;
-            }
 
             if (kDown & KEY_LEFT) {
                 dayChange--;
@@ -228,7 +173,7 @@ int main(int argc, char* argv[]) {
 
             char timeToSetStr[25];
             strftime(timeToSetStr, sizeof timeToSetStr, "%c", p_tm_timeToSet);
-            printf("\rTime to set: %s", timeToSetStr);
+            printf("\r       Time to set: %s", timeToSetStr);
             consoleUpdate(NULL);
         }
     }
