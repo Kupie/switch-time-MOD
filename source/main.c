@@ -101,10 +101,11 @@ int main(int argc, char* argv[]) {
     }
     printf(
         "\n\n\n"
-        "       UP/DOWN to change hour\n"
-        "       LEFT/RIGHT to change day\n"
-        "       L/R to change 7 days\n"
-        "       A to save time\n\n\n");
+        "                    UP/DOWN: Change hour\n"
+        "                 LEFT/RIGHT: Change day\n"
+        "                        L/R: Change 7 days\n"
+        "                          A: Save Time\n"
+        "                       HOME: Exit\n\n\n");
 
     int dayChange = 0, hourChange = 0;
 
@@ -172,7 +173,7 @@ int main(int argc, char* argv[]) {
             }
 
             char timeToSetStr[25];
-            strftime(timeToSetStr, sizeof timeToSetStr, "%c", p_tm_timeToSet);
+            strftime(timeToSetStr, sizeof timeToSetStr, "%a %b %d %I:%M %P %G", p_tm_timeToSet);
             printf("\r       Time to set: %s", timeToSetStr);
             consoleUpdate(NULL);
         }
