@@ -1,6 +1,8 @@
 # SwitchTime
 Change NetworkSystemClock
 
+Mod of Switch-Time by 3096, for personal use so L/R can change by 7 days and "+" doesn't exit as I intend this as a userprofile redirect on my girlfriend's Switch for her animal crossing needs, along with some things "stripped" so she doesn't accidentally enable them
+
 ## Credit
 - [@thedax](https://github.com/thedax) for NX-ntpc, from which this project is forked.
 
