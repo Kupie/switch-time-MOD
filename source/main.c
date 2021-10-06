@@ -68,114 +68,115 @@ bool setNetworkSystemClock(time_t time) {
     return true;
 }
 
-int consoleExitWithMsg(char* msg) {
-    //printf("%s\n\nPress + to quit...", msg);
 
-    while (appletMainLoop()) {
-        hidScanInput();
-        u64 kDown = hidKeysDown(CONTROLLER_P1_AUTO);
 
-        //if (kDown & KEY_PLUS) {
-        //    consoleExit(NULL);
-        //    return 0;  // return to hbmenu
-        //}
 
-        consoleUpdate(NULL);
-    }
-    consoleExit(NULL);
-    return 0;
-}
 
 
 int main(int argc, char* argv[]) {
     consoleInit(NULL);
+	// Configure our supported input layout: a single player with standard controller styles
+    padConfigureInput(1, HidNpadStyleSet_NpadStandard);
+
+    // Initialize the default gamepad (which reads handheld mode inputs as well as the first connected controller)
+    PadState pad;
+    padInitializeDefault(&pad);
+
     printf("\n       SwitchTime v0.1.1 MOD\n");
 
     if (!setsysInternetTimeSyncIsOn()) {
-        // printf("Trying setsysSetUserSystemClockAutomaticCorrectionEnabled...\n");
-        // if (R_FAILED(enableSetsysInternetTimeSync())) {
-        //     return consoleExitWithMsg("Internet time sync is not enabled. Please enable it in System Settings.");
-        // }
-        // doesn't work without rebooting? not worth it
-        return consoleExitWithMsg("Internet time sync is not enabled. Please enable it in System Settings.");
+        consoleExit(NULL);
+        return 0;
     }
     printf(
         "\n\n\n"
-        "                    UP/DOWN: Change hour\n"
-        "                 LEFT/RIGHT: Change day\n"
-        "                        L/R: Change 7 days\n"
+        "                        +/-: Change Minute\n"
+        "                    UP/DOWN: Change Hour\n"
+        "                 LEFT/RIGHT: Change Day\n"
+        "                        L/R: Change Week\n"
+        "                      ZL/ZR: Change Month\n"
+        "                        Y/X: Change Year\n\n"
         "                          A: Save Time\n"
-        "                       HOME: Exit\n\n\n");
+        "                       HOME: Exit\n\n\n\n");
 
-    int dayChange = 0, hourChange = 0;
+    int dayChange = 0, hourChange = 0, minuteChange = 0;
 
     // Main loop
     while (appletMainLoop()) {
-        while (appletMainLoop()) {
-            hidScanInput();
-            u64 kDown = hidKeysDown(CONTROLLER_P1_AUTO);
-
-			//We're running this as an applet for overwriting the user page, so "quitting" isn't a thing i this version
-            //if (kDown & KEY_PLUS) {
-            //    consoleExit(NULL);
-            //    return 0;  // return to hbmenu
-            //}
-			
-            if (kDown & KEY_L) {
-                dayChange--;
-				dayChange--;
-				dayChange--;
-				dayChange--;
-				dayChange--;
-				dayChange--;
-				dayChange--;
-            }
-
-			
-            if (kDown & KEY_R) {
-                dayChange++;
-				dayChange++;
-				dayChange++;
-				dayChange++;
-				dayChange++;
-				dayChange++;
-				dayChange++;
-            }
-
-
-            time_t currentTime;
-            Result rs = timeGetCurrentTime(TimeType_UserSystemClock, (u64*)&currentTime);
-            if (R_FAILED(rs)) {
-                printf("       timeGetCurrentTime failed with %x", rs);
-                return consoleExitWithMsg("");
-            }
-
-            struct tm* p_tm_timeToSet = localtime(&currentTime);
-            p_tm_timeToSet->tm_mday += dayChange;
-            p_tm_timeToSet->tm_hour += hourChange;
-            time_t timeToSet = mktime(p_tm_timeToSet);
-
-            if (kDown & KEY_A) {
-                printf("\n\n\n");
-                setNetworkSystemClock(timeToSet);
-                break;
-            }
-
-
-            if (kDown & KEY_LEFT) {
-                dayChange--;
-            } else if (kDown & KEY_RIGHT) {
-                dayChange++;
-            } else if (kDown & KEY_DOWN) {
-                hourChange--;
-            } else if (kDown & KEY_UP) {
-                hourChange++;
-            }
-
-            char timeToSetStr[25];
-            strftime(timeToSetStr, sizeof timeToSetStr, "%a %b %d %I:%M %P %G", p_tm_timeToSet);
-            printf("\r       Time to set: %s", timeToSetStr);
-            consoleUpdate(NULL);
+		padUpdate(&pad);
+		u64 kDown = padGetButtonsDown(&pad);
+        
+        //We're running this as an applet for overwriting the user page, so "quitting" isn't a thing i this version
+        //if (kDown & HidNpadButton_PLUS) {
+        //    consoleExit(NULL);
+        //    return 0;  // return to hbmenu
+        //}
+        
+        if (kDown & HidNpadButton_Minus) {
+            minuteChange -= 1;
         }
+        
+        if (kDown & HidNpadButton_Plus) {
+            minuteChange += 1;
+        }
+        
+        if (kDown & HidNpadButton_L) {
+            dayChange -= 7;
+        }
+        
+        if (kDown & HidNpadButton_R) {
+            dayChange += 7;
+        }
+        if (kDown & HidNpadButton_ZR) {
+            dayChange += 28;
+        }
+        
+        if (kDown & HidNpadButton_ZL) {
+            dayChange -= 28;
+        }
+        
+        if (kDown & HidNpadButton_X) {
+            dayChange += 365;
+        }
+        
+        if (kDown & HidNpadButton_Y) {
+            dayChange -= 365;
+        }
+        
+        
+        time_t currentTime;
+        Result rs = timeGetCurrentTime(TimeType_UserSystemClock, (u64*)&currentTime);
+        if (R_FAILED(rs)) {
+            consoleExit(NULL);
+			return 0;
+        }
+        
+        struct tm* p_tm_timeToSet = localtime(&currentTime);
+        p_tm_timeToSet->tm_mday += dayChange;
+        p_tm_timeToSet->tm_hour += hourChange;
+        p_tm_timeToSet->tm_min += minuteChange;
+        time_t timeToSet = mktime(p_tm_timeToSet);
+        
+        if (kDown & HidNpadButton_A) {
+            printf("\n\n\n");
+            setNetworkSystemClock(timeToSet);
+
+        }
+        
+        
+        if (kDown & HidNpadButton_Left) {
+            dayChange--;
+        } else if (kDown & HidNpadButton_Right) {
+            dayChange++;
+        } else if (kDown & HidNpadButton_Down) {
+            hourChange--;
+        } else if (kDown & HidNpadButton_Up) {
+            hourChange++;
+        }
+        
+        char timeToSetStr[25];
+        strftime(timeToSetStr, sizeof timeToSetStr, "%a %b %d %I:%M %P %G", p_tm_timeToSet);
+        printf("\r       Time to set: %s", timeToSetStr);
+        consoleUpdate(NULL);
     }
 }
